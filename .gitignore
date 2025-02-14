@@ -1,0 +1,21 @@
+# Dependencias de Node.js
+node_modules/
+
+# Archivos de entorno y configuración local
+.env
+.DS_Store
+
+# Caché y logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Archivos de compilación
+dist/
+build/
+
+# IDEs y editores de código
+.vscode/
+.idea/
