@@ -7,7 +7,7 @@ module.exports = function (req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token.replace('Bearer ', ''), 'secreto');
+    const decoded = jwt.verify(token.replace('Bearer ', ''), JWT_SECRET);
     req.usuario = decoded.usuario;
     next();
   } catch (error) {

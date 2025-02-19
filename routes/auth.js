@@ -34,11 +34,31 @@ router.post(
 
       await usuario.save();
 
-      // Generamos el JWT
       const payload = { usuario: { id: usuario.id } };
-      const token = jwt.sign(payload, 'secreto', { expiresIn: '1h' });
 
-      res.json({ token });
+      // Generar Access Token
+      const accessToken = jwt.sign(
+          payload,
+          process.env.JWT_SECRET,
+          { expiresIn: '15m' }
+      );
+
+      // Generar Refresh Token
+      const refreshToken = jwt.sign(
+          payload,
+          process.env.REFRESH_SECRET,
+          { expiresIn: '7d' }
+      );
+
+      // Guardar Refresh Token en cookie segura
+      res.cookie('refreshToken', refreshToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'Strict',
+          maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
+      });
+
+      res.json({ accessToken });
     } catch (error) {
       console.error(error);
       res.status(500).send('Error en el servidor');
@@ -50,7 +70,7 @@ router.post(
     '/login',
     [
       check('email', 'Debe ser un email válido').isEmail(),
-      check('password', 'La contraseña es obligatoria').exists(),
+      check('password', 'La contraseña es obligatoria').notEmpty(),
     ],
     validar,
     async (req, res) => {
@@ -60,26 +80,78 @@ router.post(
       try {
         let usuario = await User.findOne({ email });
         if (!usuario) {
-          return res.status(400).json({ msg: 'Usuario no encontrado' });
+          return res.status(401).json({ msg: 'Usuario no encontrado' });
         }
   
         // Comparamos contraseñas
         const esCorrecto = await bcrypt.compare(password, usuario.password);
         if (!esCorrecto) {
-          return res.status(400).json({ msg: 'Contraseña incorrecta' });
+          return res.status(401).json({ msg: 'Contraseña incorrecta' });
         }
   
-        // Generamos el JWT
         const payload = { usuario: { id: usuario.id } };
-        const token = jwt.sign(payload, 'secreto', { expiresIn: '1h' });
+
+        // Generar Access Token
+        const accessToken = jwt.sign(
+            payload,
+            process.env.JWT_SECRET,
+            { expiresIn: '15m' }
+        );
+
+        // Generar Refresh Token
+        const refreshToken = jwt.sign(
+            payload,
+            process.env.REFRESH_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        // Guardar Refresh Token en cookie segura
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'Strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
+        });
   
-        res.json({ token });
+        res.json({ accessToken });
       } catch (error) {
         console.error(error);
         res.status(500).send('Error en el servidor');
       }
     }
-  );
+);
   
+
+// ** Refresh Token - Genera un nuevo Access Token**
+router.post('/refresh', async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+        if (!refreshToken) {
+            return res.status(401).json({ msg: 'No autorizado' });
+        }
+
+        jwt.verify(refreshToken, process.env.REFRESH_SECRET, (err, decoded) => {
+            if (err) return res.status(403).json({ msg: 'Token inválido' });
+
+            // Generar un nuevo Access Token
+            const accessToken = jwt.sign(
+                { usuario: { id: decoded.usuario.id } },
+                process.env.JWT_SECRET,
+                { expiresIn: '15m' }
+            );
+
+            res.json({ accessToken });
+        });
+    } catch (error) {
+        res.status(500).json({ msg: 'Error en el servidor' });
+    }
+});
+
+// ** Logout - Elimina el Refresh Token**
+router.post('/logout', (req, res) => {
+    res.clearCookie('refreshToken');
+    res.json({ msg: 'Logout exitoso' });
+});
+
 
 module.exports = router;

@@ -1,8 +1,15 @@
 const express = require("express");
+const cookieParser = require('cookie-parser');
 const mongoose = require("mongoose");
+const cors = require('cors');
 
 const app = express();
-app.use(express.json());
+
+// Middlewares
+app.use(express.json()); // Para leer JSON
+app.use(cookieParser()); // Para leer cookies
+app.use(cors({ credentials: true, origin: 'http://localhost' })); // Permitir cookies en frontend
+
 
 // Conectar a MongoDB (asegúrate de que MongoDB esté corriendo)
 mongoose.connect("mongodb://127.0.0.1:27017/miBaseDeDatos")
